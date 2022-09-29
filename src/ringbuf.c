@@ -53,13 +53,14 @@ static int RingBuffer_init(RingBuffer *self, PyObject *args, PyObject *kwds) {
 static void RingBuffer_dealloc(RingBuffer *self) {
     PyMem_Free(self->buffer);
 	self->buffer = NULL;
-    self->ob_type->tp_free((PyObject *)self);
+    //self->ob_type->tp_free((PyObject *)self);
+	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
 static PyObject *RingBuffer_push(RingBuffer *self, PyObject *args) {
 	char c;
 
-	if (!PyArg_ParseTuple(args, "c", &c)) {
+	if (!PyArg_ParseTuple(args, "C", &c)) {
 		PyErr_SetString(PyExc_ValueError, "c must be a string of length 1");
 		return NULL;
 	}
@@ -75,7 +76,7 @@ static PyObject *RingBuffer_pop(RingBuffer *self) {
 		//TODO: raise a Buffer empty error
 		tmp = Py_BuildValue("s", "");
     } else {
-		tmp = Py_BuildValue("c", self->buffer[self->read_idx%self->size]);
+		tmp = Py_BuildValue("C", self->buffer[self->read_idx%self->size]);
 		self->read_idx++;
 	}
 	return tmp;
@@ -147,7 +148,7 @@ static PyMethodDef RingBuffer_methods[] = {
 
 static PyTypeObject RingBufferType = {
     PyObject_HEAD_INIT(NULL)
-    0,                         /*ob_size*/
+    //0,                         /*ob_size*/
     "ringbuf.RingBuffer",      /*tp_name*/
     sizeof(RingBuffer),        /*tp_basicsize*/
     0,                         /*tp_itemsize*/
@@ -191,19 +192,30 @@ static PyMethodDef module_methods[] = {
     {NULL}  /* Sentinel */
 };
 
-#ifndef PyMODINIT_FUNC /* declarations for DLL import/export */
-#define PyMODINIT_FUNC void
-#endif
-PyMODINIT_FUNC initringbuf(void) {
+static PyModuleDef ringbufmodule = {
+    PyModuleDef_HEAD_INIT,
+    "ringbuf",
+    "A circular/ring buffer written in C",
+    -1,
+    module_methods
+};
+
+// #ifndef PyMODINIT_FUNC /* declarations for DLL import/export */
+// #define PyMODINIT_FUNC void
+// #endif
+// PyMODINIT_FUNC initringbuf(void) {
+PyMODINIT_FUNC PyInit_ringbuf(void) {
     PyObject* m;
 
-    if (PyType_Ready(&RingBufferType) < 0) return;
+    if (PyType_Ready(&RingBufferType) < 0) return NULL;
 
-    m = Py_InitModule3("ringbuf", module_methods, "A circular/ring buffer written in C");
+    // m = Py_InitModule3("ringbuf", module_methods, "A circular/ring buffer written in C");
+	m = PyModule_Create(&ringbufmodule);
 
-    if (m == NULL) return;
+    if (m == NULL) return NULL;
 
     Py_INCREF(&RingBufferType);
     PyModule_AddObject(m, "RingBuffer", (PyObject *)&RingBufferType);
+	return m;
     //(void) Py_InitModule("ringbuf", module_methods);
 };
